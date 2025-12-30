@@ -1,10 +1,15 @@
 const express = require('express')
-const dbConfig = require('./dbConfig')
-const app = express()
-const port = 3000
-app.use(express.json())
 require('dotenv').config()
+const dbConfig = require('./dbConfig')
+const route = require('./routes')
+
+
+const app = express()
+const port = 8000
+app.use(express.json())
+
 dbConfig()
+app.use(route)
 
 
 app.listen(port, () => {
