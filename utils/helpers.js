@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto')
 
 const generateOTP = ()=> {
   return Math.floor(1000 + Math.random() * 9000);
@@ -36,14 +37,17 @@ const verifyToken = (token)=>{
 }
 
 const generateResetToken = (user)=>{
-  return jwt.sign(
-    { 
-      _id : user._id,
-      email:user.email,
-    }, 
-    process.env.JWT_SEC, 
-    { expiresIn: '2h' });
+  const resetToken = crypto.randomBytes(16).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex')
+
+  return {resetToken,hashedToken}
+}
+
+const hashResetToken = (token)=>{
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+
+    return hashedToken
 }
 
 
-module.exports = {generateOTP,generateAccToken,generateRefreshToken,verifyToken,generateResetToken}
+module.exports = {generateOTP,generateAccToken,generateRefreshToken,verifyToken,generateResetToken,hashResetToken}
