@@ -1,7 +1,8 @@
 const userSchema = require("../models/userSchema");
 const { sendEmail } = require("../utils/emailServices");
-const { generateOTP, generateAccToken, generateRefreshToken, generateResetToken } = require("../utils/helpers");
+const { generateOTP, generateAccToken, generateRefreshToken, generateResetToken, hashResetToken } = require("../utils/helpers");
 const { isValidEmail, isValidPassword } = require("../utils/regexValidation");
+const { emailTemp, resetPassTemp } = require("../utils/templates");
 
 const signUp = async (req, res) => {
   try {
@@ -34,9 +35,10 @@ const signUp = async (req, res) => {
       otpExpire: Date.now() + 2 * 60 * 1000,
     });
     sendEmail({
-      email: email,
+      email,
+      template: emailTemp,
       subject: "Email Verification",
-      otp: generateOtp,
+      item: generateOtp,
     });
     userData.save();
 
@@ -145,13 +147,17 @@ const forgotPass = async(req,res)=>{
     const existUser = await userSchema.findOne({email})
     if(!existUser) return res.status(400).send({message :'Email not found'})
 
-    const resetPass = generateResetToken(existUser)
-    const Reset_Pass_Link = `${process.env.CLIENT_URL || "http://localhost:8000/"}/resetPass/?sec=${resetPass}`
+    const {hashedToken,resetToken}= generateResetToken()
+    existUser.resetPassToken = hashedToken
+    existUser.resetExpire = Date.now() + 2 * 60 * 1000
+    existUser.save()
+    const Reset_Pass_Link = `${process.env.CLIENT_URL || "http://localhost:8000"}/auth/resetPass/${resetToken}`
     
     sendEmail({
       email: email,
+      template : resetPassTemp,
       subject: "reset password",
-      otp: Reset_Pass_Link,
+      item: Reset_Pass_Link,
     });
 
     res.status(200).send({message : 'reset pass link in your email.'})
@@ -164,4 +170,31 @@ const forgotPass = async(req,res)=>{
   }
 }
 
-module.exports = { signUp, verifyOTP,resendOTP,signIn };
+const ressetPassword = async(req,res)=>{
+  try {
+    const {newPassword} = req.body
+    const {token} = req.params
+    if(!newPassword) return res.status(400).send({message : 'New Passowrd is required'})
+    if(!token) return res.status(400).send({message : '404 - not found'})
+
+    const hashToken = hashResetToken(token)
+    const existUser = await userSchema.findOne({
+      resetPassToken : hashToken,
+      resetExpire : {$gt : Date.now()}
+    })
+
+    if(!existUser) return res.status(400).send({message : 'Invalid request'})
+    existUser.password = newPassword
+    existUser.resetPassToken = undefined
+    existUser.resetExpire = undefined
+    existUser.save()
+
+    res.status(200).send({message : 'Password changed successfully.'})
+
+  } 
+  catch (error) {
+    console.log(error)  
+  }
+}
+
+module.exports = { signUp, verifyOTP,resendOTP,signIn,forgotPass,ressetPassword };
