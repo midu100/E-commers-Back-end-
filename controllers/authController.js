@@ -197,4 +197,42 @@ const ressetPassword = async(req,res)=>{
   }
 }
 
-module.exports = { signUp, verifyOTP,resendOTP,signIn,forgotPass,ressetPassword };
+const getUserProfile = async(req,res)=>{
+  try {
+    const user = await userSchema.findByIdAndUpdate(req.user._id).select('-password -otp -otpExpire -resetPassToken -resetExpire -updatedAt')
+    if(!user) return res.status(400).send({message : 'Invalid request'})
+
+    res.status(200).send({message : 'Successful' , user})
+
+
+  } 
+  catch (error) {
+     console.log(error)  
+  }
+}
+
+const updateUserProfile = async(req,res)=>{
+  try {
+    const {fullName,phone,address} = req.body
+    const userId = req.user._id
+    const updateFeilds = {}
+
+    console.log('avatar:',req.file)
+    return
+
+    if(fullName) updateFeilds.fullName = fullName
+    if(phone) updateFeilds.phone = phone
+    if(address) updateFeilds.address = address
+
+    const user = await userSchema.findByIdAndUpdate(userId,updateFeilds,{new : true}).select('-password -otp -otpExpire -resetPassToken -resetExpire -updatedAt')
+
+    res.status(201).send({message : 'Update successful',user})
+
+
+  } 
+  catch (error) {
+    console.log(error)  
+  }
+}
+
+module.exports = { signUp, verifyOTP,resendOTP,signIn,forgotPass,ressetPassword ,getUserProfile,updateUserProfile };
