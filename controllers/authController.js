@@ -1,7 +1,7 @@
 const userSchema = require("../models/userSchema");
-const { uploadToCloudinary } = require("../utils/cloudinaryService");
+const { uploadToCloudinary, deleteToCloudinary } = require("../utils/cloudinaryService");
 const { sendEmail } = require("../utils/emailServices");
-const { generateOTP, generateAccToken, generateRefreshToken, generateResetToken, hashResetToken } = require("../utils/helpers");
+const { generateOTP, generateAccToken, generateRefreshToken, generateResetToken, hashResetToken, verifyToken } = require("../utils/helpers");
 const { isValidEmail, isValidPassword } = require("../utils/regexValidation");
 const { emailTemp, resetPassTemp } = require("../utils/templates");
 const cloudinary = require('cloudinary').v2;
@@ -219,26 +219,21 @@ const updateUserProfile = async(req,res)=>{
     const {fullName,phone,address} = req.body
     const userId = req.user._id
     const avatar = req.file
-    const updateFeilds = {}
 
-
-    
-  
-    
-    
-    
     const user = await userSchema.findById(userId).select('-password -otp -otpExpire -resetPassToken -resetExpire -updatedAt')
-    if(avatar){
-      const imgRes =await uploadToCloudinary(avatar,'avatar')
-      console.log(imgRes)
-      user.avatar = imgRes.secure_url
 
+    if(avatar){    
+      const imgRes = await uploadToCloudinary(avatar,'avatar')
+
+      deleteToCloudinary(user.avatar, "avatar")
+      user.avatar = imgRes.secure_url
     }
-  
 
     if(fullName) user.fullName = fullName
     if(phone) user.phone = phone
     if(address) user.address = address
+
+    user.save()
 
 
     res.status(201).send({message : 'Update successful',user})
@@ -250,4 +245,35 @@ const updateUserProfile = async(req,res)=>{
   }
 }
 
-module.exports = { signUp, verifyOTP,resendOTP,signIn,forgotPass,ressetPassword ,getUserProfile,updateUserProfile };
+const refreshToken = async (req, res) => {
+  try {
+     
+    const refreshToken = req.cookies['R_FS-TOKEN']
+
+    if (!refreshToken) return res.status(400).send({message: "Refresh token missing"})
+
+    //Verify refresh token
+    const decoded = verifyToken(refreshToken);
+    if (!decoded) return res.status(400).json({ message: "missing verify" });
+
+    //Generate new access token
+    const accToken = generateAccToken(decoded);
+
+    // Set cookie
+    res.cookie("X_AS-TOKEN", accToken, {
+      httpOnly: false,
+      secure: false,
+    });
+
+    res.status(200).send({message:'Successful',accToken})
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+module.exports = { signUp, verifyOTP,resendOTP,signIn,forgotPass,ressetPassword ,getUserProfile,updateUserProfile,refreshToken };
