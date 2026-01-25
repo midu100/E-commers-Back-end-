@@ -8,4 +8,5 @@ const cloudinaryConfig = () => {
   });
 };
 
+
 module.exports = cloudinaryConfig
