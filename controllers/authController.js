@@ -1,8 +1,11 @@
 const userSchema = require("../models/userSchema");
+const { uploadToCloudinary } = require("../utils/cloudinaryService");
 const { sendEmail } = require("../utils/emailServices");
 const { generateOTP, generateAccToken, generateRefreshToken, generateResetToken, hashResetToken } = require("../utils/helpers");
 const { isValidEmail, isValidPassword } = require("../utils/regexValidation");
 const { emailTemp, resetPassTemp } = require("../utils/templates");
+const cloudinary = require('cloudinary').v2;
+
 
 const signUp = async (req, res) => {
   try {
@@ -215,16 +218,28 @@ const updateUserProfile = async(req,res)=>{
   try {
     const {fullName,phone,address} = req.body
     const userId = req.user._id
+    const avatar = req.file
     const updateFeilds = {}
 
-    console.log('avatar:',req.file)
-    return
 
-    if(fullName) updateFeilds.fullName = fullName
-    if(phone) updateFeilds.phone = phone
-    if(address) updateFeilds.address = address
+    
+  
+    
+    
+    
+    const user = await userSchema.findById(userId).select('-password -otp -otpExpire -resetPassToken -resetExpire -updatedAt')
+    if(avatar){
+      const imgRes =await uploadToCloudinary(avatar,'avatar')
+      console.log(imgRes)
+      user.avatar = imgRes.secure_url
 
-    const user = await userSchema.findByIdAndUpdate(userId,updateFeilds,{new : true}).select('-password -otp -otpExpire -resetPassToken -resetExpire -updatedAt')
+    }
+  
+
+    if(fullName) user.fullName = fullName
+    if(phone) user.phone = phone
+    if(address) user.address = address
+
 
     res.status(201).send({message : 'Update successful',user})
 
