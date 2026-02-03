@@ -28,7 +28,7 @@ const signUp = async (req, res) => {
     const generateOtp = generateOTP();
 
     const userData = new userSchema({
-      fullName,
+      fullName ,
       email,
       password,
       phone,
