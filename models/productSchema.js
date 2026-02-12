@@ -5,12 +5,18 @@ const productSchema = new mongoose.Schema({
         type : String,
         required : true
     },
+    slug : {
+        type : String,
+        required : true,
+        unique : true
+    },
     description : {
         type : String,
         required : true
     },
     category : {
-        type : String,
+        type : mongoose.Types.ObjectId,
+        ref: 'category',
         required : true
     },
     price : {
@@ -26,35 +32,38 @@ const productSchema = new mongoose.Schema({
             sku : {
                 type : String,
                 required : true,
-                unique : true
+                // unique : true
             },
-           attributes : {
-             size : {
-                type : String,
-                required : true,
-                enum : ['S','M','L','XL','XXL','3XL']
-            },
-            color : {
-                type : String,
-                required : true
-            },
-            stock : {
-                type : String,
-                required : true
-            }
+            size : {
+               type : String,
+               required : true,
+               enum : ['S','M','L','XL','XXL','3XL','s','m','l','xl','xxl','3xl']
+           },
+           color : {
+               type : String,
+               required : true
+           },
+           stock : {
+               type : Number,
+               required : true
            }
+           
         }
     ],
-    tags : {
-        type : Array
-    },
+    tags : [
+        {
+            type : String
+        }
+    ],
     thumbnail : {
         type : String,
         required : true
     },
-    images : {
-        type : Array
-    },
+    images : [
+        {
+            type : String
+        }
+    ],
     isActive : {
         type : Boolean,
         default : false

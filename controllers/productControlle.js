@@ -1,16 +1,42 @@
+const categorySchema = require("../models/categorySchema")
 const productSchema = require("../models/productSchema")
 const { uploadToCloudinary } = require("../utils/cloudinaryService")
 
+const SIZE_ENUM = ['S','M','L','XL','XXL','3XL','s','m','l','xl','xxl','3xl']
+
 const createProduct = async(req,res)=>{
     try {
-        const {title,description,category,price,discountPercentage,variants,tags,isActive} = req.body
-        const thumbnail = req.files.thumbnail?.[0]
-        const images = req.files.images
+        const {title,slug,description,category,price,discountPercentage,variants,tags,isActive} = req.body
+        const thumbnail = req.files?.thumbnail?.[0] ;
+        const images = req.files?.images ;
 
         if(!title) return res.status(400).send({message : 'Product Title is required.'})
+        if(!slug) return res.status(400).send({message : 'Product Slug is required.'})
+          const existSlug = await productSchema.findOne({slug : slug.toLowerCase()})
+          if(existSlug) return res.status(400).send({message : 'Slug already exist'})
         if(!description) return res.status(400).send({message : 'Product Description is required.'})
         if(!category) return res.status(400).send({message : 'Product Category is required.'})
+          const existCategory = await categorySchema.findById(category)
+          if(!existCategory) return res.status(400).send({message : 'Invalid Category'})
         if(!price) return res.status(400).send({message : 'Product Price is required.'})
+
+          const variantData = JSON.parse(variants)
+          console.log(Array.isArray(variantData))
+        
+        if(!Array.isArray(variantData) || variantData.length === 0) return res.status(400).send({message : 'Minimum 1 variants is required'})
+        
+        for (const variant of variantData) {
+          console.log(variant)
+          if(!variant.sku) return res.status(400).send({message : 'Sku is required'})
+          if(!variant.size) return res.status(400).send({message : 'Size is required'})
+          if(!variant.color) return res.status(400).send({message : 'Color is required'})
+          if(!SIZE_ENUM.includes(variant.size)) return res.status(400).send({message : 'Invalid size'})
+          if(!variant.stock || variant.stock < 1) return res.status(400).send({message : 'Stock is required & must more than 1'})
+        }
+
+        const skus = variantData.map(item => item.sku)
+        if(new Set(skus).size !== skus.length) return res.status(400).send({message : 'Sku must be unique'})
+
         if(!thumbnail || thumbnail.length < 1) return res.status(400).send({message : 'Product Thumbnail is Required'})
         if(images && images?.length > 4) return res.status(400).send({message : 'You can upload max 4 images'})
             
@@ -26,16 +52,20 @@ const createProduct = async(req,res)=>{
             // Send To DB
             const product = productSchema({
               title,
+              slug : slug.toLowerCase(),
               description,
               category,
               price,
               discountPercentage,
-              variants,
+              variants:variantData,
               tags,
               thumbnail : thumbnailUrl.secure_url,
-              images : imagesUrl
+              images : imagesUrl,
+              isActive
             })
-            product.save()
+            await product.save()
+
+        
 
             res.status(200).send({message : 'Product create successfully'})
 
@@ -44,7 +74,8 @@ const createProduct = async(req,res)=>{
 
     } 
     catch (error) {
-      console.log(error)    
+      console.log(error)   
+      res.status(500).send({message : 'Internal server error'}) 
     }
 }
 
