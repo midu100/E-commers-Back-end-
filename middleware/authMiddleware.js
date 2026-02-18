@@ -7,7 +7,7 @@ const authMiddleware = async(req,res,next)=>{
         if(!token['X_AS-TOKEN']) return res.status(400).send({message : 'Token missing'})
         
         const decoded = verifyToken(token['X_AS-TOKEN'])
-        if(!decoded) return res.status(400).send({message : 'Invalid request.'})
+        if(!decoded) return res.status(400).send({message : 'Invalidd request.'})
         req.user = decoded
         next()
     } 
