@@ -132,6 +132,11 @@ const getProductList = async (req, res) => {
     //   .sort({ createdAt: -1 });
 
     const pipeline = [
+      // {
+      //    $match: {
+      //     "isActive": true
+      //   }
+      // },
       {
         $lookup: {
           from: "categories",
@@ -174,4 +179,35 @@ const getProductList = async (req, res) => {
   }
 };
 
-module.exports = { createProduct, getProductList };
+const getProductDetails = async(req,res)=>{
+  try {
+    const {slug}  = req.params
+
+    const productDetails = await productSchema.findOne({slug}).populate('category','name').select('-isActive')
+    if(!productDetails) return res.status(404).send({message : "Product not found"})
+    // console.log(productDetails)
+
+    res.status(200).send({message : 'success', productDetails})
+
+  } 
+  catch (error) {
+    console.log(error)  
+  }
+}
+
+const updateProduct = async(req,res)=>{
+  try {
+    const{title,description,category,price,discountPercentage,variant,tags}=req.body
+    const {slug} = req.params
+
+    const productData = await productSchema.findOne({slug})
+    console.log(productData)
+
+
+  } 
+  catch (error) {
+    console.log(error)  
+  }
+}
+
+module.exports = { createProduct, getProductList ,getProductDetails ,updateProduct};
