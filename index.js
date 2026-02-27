@@ -7,6 +7,7 @@ const { generateResetToken } = require("./utils/helpers");
 const cloudinaryConfig = require("./utils/cloudinaryConfig");
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
 const port = 8000;
 app.use(express.json());
 app.use(cookieParser());
