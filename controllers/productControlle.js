@@ -1,7 +1,8 @@
 const { pipeline } = require("nodemailer/lib/xoauth2");
 const categorySchema = require("../models/categorySchema");
 const productSchema = require("../models/productSchema");
-const { uploadToCloudinary } = require("../utils/cloudinaryService");
+const { uploadToCloudinary, deleteToCloudinary } = require("../utils/cloudinaryService");
+const responseHandler = require("../utils/responseHandler");
 
 const SIZE_ENUM = ["S","M","L","XL","XXL","3XL","s","m","l","xl","xxl","3xl"];
 
@@ -197,16 +198,62 @@ const getProductDetails = async(req,res)=>{
 
 const updateProduct = async(req,res)=>{
   try {
-    const{title,description,category,price,discountPercentage,variant,tags}=req.body
+    const{title,description,category,price,discountPercentage,variants,tags}=req.body
     const {slug} = req.params
+    const thumbnail = req.files?.thumbnail?.[0]
+    const images = req.files
 
     const productData = await productSchema.findOne({slug})
-    console.log(productData)
 
+    if(title) productData.title = title
+    if(description) productData.description = description
+    if(category) productData.category = category
+    if(price) productData.price = price
+    if(discountPercentage) productData.discountPercentage = discountPercentage
+    if(tags && tags.length > 0 && Array.isArray(tags)) productData.tags = tags
 
+    let variantData = [];
+    if (variants) {
+        variantData = JSON.parse(variants);
+    }
+      
+    // const variantData = JSON.parse(variants);
+    // console.log(Array.isArray(variantData));
+    if (Array.isArray(variantData) && variantData.length > 0){
+      for (const variant of variantData) {
+        console.log(variant);
+        if (!variant.sku)
+          return res.status(400).send({ message: "Sku is required" });
+        if (!variant.size)
+          return res.status(400).send({ message: "Size is required" });
+        if (!variant.color)
+          return res.status(400).send({ message: "Color is required" });
+        if (!SIZE_ENUM.includes(variant.size))
+          return res.status(400).send({ message: "Invalid size" });
+        if (!variant.stock || variant.stock < 1)
+          return res
+            .status(400)
+            .send({ message: "Stock is required & must more than 1" });
+      }
+      const skus = variantData.map((item) => item.sku);
+      if (new Set(skus).size !== skus.length)
+        return res.status(400).send({ message: "Sku must be unique" });
+  
+      const existingProduct = await productSchema.findOne({
+        "variants.sku": { $in: skus },
+      });
+    }
+
+     if(thumbnail){    
+      const imgRes = await uploadToCloudinary(thumbnail,'product')
+      deleteToCloudinary(productData?.thumbnail, "product")
+      productData.thumbnail = imgRes.secure_url
+    }
+    productData.save()
+    return responseHandler.success(res,'Uddate successfully done',productData)
   } 
   catch (error) {
-    console.log(error)  
+    return responseHandler.error(res,error.message)  
   }
 }
 

@@ -9,7 +9,7 @@ const route = express.Router()
 route.post('/upload',authMiddleware,roleCheckMiddleware('admin','editor'),upload.fields([{ name: 'thumbnail', maxCount: 1 },{ name: 'images', maxCount: 4 },]),createProduct)
 route.get('/allproducts',getProductList)
 route.get('/:slug',getProductDetails)
-route.put('/updateproduct/:slug',authMiddleware,roleCheckMiddleware('admin','editor'),updateProduct)
+route.put('/updateproduct/:slug',authMiddleware,roleCheckMiddleware('admin','editor'),upload.fields([{ name: 'thumbnail', maxCount: 1 },{ name: 'images', maxCount: 4 }]),updateProduct)
 
 
 module.exports = route
