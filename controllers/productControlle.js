@@ -212,12 +212,12 @@ const updateProduct = async(req,res)=>{
     if(discountPercentage) productData.discountPercentage = discountPercentage
     if(tags && tags.length > 0 && Array.isArray(tags)) productData.tags = tags
 
-    let variantData = [];
-    if (variants) {
-        variantData = JSON.parse(variants);
-    }
+    // let variantData = [];
+    // if (variants) {
+    //     variantData = JSON.parse(variants);
+    // }
       
-    // const variantData = JSON.parse(variants);
+    const variantData =variants && JSON.parse(variants);
     // console.log(Array.isArray(variantData));
     if (Array.isArray(variantData) && variantData.length > 0){
       for (const variant of variantData) {
