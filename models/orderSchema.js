@@ -23,18 +23,17 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const paymentSchema = new mongoose.Schema({
-  payMethod: {
+  method: {
     type: String,
-    enum: ["Bkash", "Nagad", "Stripe", "SSLCommerz", " Cash"],
+    enum: ["Bkash", "Nagad", "Stripe", "SSLCommerz", "cash"],
+  },
+  paymentId : {
+    type : String
   },
   status: {
     type: String,
     enum: ["Pending", "Paid", "Failed"],
     default: "Pending",
-  },
-  amount: {
-    type: Number,
-    required: true,
   },
   currency: {
     type: String,
@@ -84,11 +83,10 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-orderSchema.pre("save", function (next) {
+orderSchema.pre("save", function () {
   if (!this.orderNumber) {
     this.orderNumber = "ORD-" + Date.now();
   }
-  next();
 });
 
 module.exports = mongoose.model("order", orderSchema);
