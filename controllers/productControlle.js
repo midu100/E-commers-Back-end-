@@ -1,10 +1,26 @@
 const { pipeline } = require("nodemailer/lib/xoauth2");
 const categorySchema = require("../models/categorySchema");
 const productSchema = require("../models/productSchema");
-const { uploadToCloudinary, deleteToCloudinary } = require("../utils/cloudinaryService");
+const {
+  uploadToCloudinary,
+  deleteToCloudinary,
+} = require("../utils/cloudinaryService");
 const responseHandler = require("../utils/responseHandler");
 
-const SIZE_ENUM = ["S","M","L","XL","XXL","3XL","s","m","l","xl","xxl","3xl"];
+const SIZE_ENUM = [
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "3XL",
+  "s",
+  "m",
+  "l",
+  "xl",
+  "xxl",
+  "3xl",
+];
 
 const createProduct = async (req, res) => {
   try {
@@ -121,7 +137,8 @@ const getProductList = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skipIndex = (page - 1) * limit;
-    const category = req.query.category
+    const category = req.query.category;
+    const search = req.query.search;
 
     const totalProducts = await productSchema.countDocuments();
 
@@ -143,25 +160,36 @@ const getProductList = async (req, res) => {
           from: "categories",
           localField: "category",
           foreignField: "_id",
-          as: "category"
-        }
+          as: "category",
+        },
       },
 
       { $unwind: "$category" },
       { $sort: { createdAt: -1 } },
       { $skip: skipIndex },
-      { $limit: limit }
-    ]
+      { $limit: limit },
+    ];
 
-    if(category) {
+    if (category) {
       pipeline.push({
         $match: {
-          "category.name": category || { $regex: category, $options: "i" }
-        }
-      })
+          "category.name": category || { $regex: category, $options: "i" },
+        },
+      });
     }
-    const productList = await productSchema.aggregate(pipeline)
-    const totalPages = Math.ceil(totalProducts / limit)
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          title: {
+            $regex: search,
+            $options: "i", // Case-insensitive option
+          },
+        },
+      });
+    }
+    const productList = await productSchema.aggregate(pipeline);
+    const totalPages = Math.ceil(totalProducts / limit);
 
     res.status(200).send({
       message: "Success",
@@ -171,8 +199,8 @@ const getProductList = async (req, res) => {
         page,
         limit,
         totalPages,
-        hasNextPage : page < totalPages,
-        hasPrevPage : page > 1
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     });
   } catch (error) {
@@ -180,46 +208,56 @@ const getProductList = async (req, res) => {
   }
 };
 
-const getProductDetails = async(req,res)=>{
+const getProductDetails = async (req, res) => {
   try {
-    const {slug}  = req.params
+    const { slug } = req.params;
 
-    const productDetails = await productSchema.findOne({slug}).populate('category','name').select('-isActive')
-    if(!productDetails) return res.status(404).send({message : "Product not found"})
+    const productDetails = await productSchema
+      .findOne({ slug })
+      .populate("category", "name")
+      .select("-isActive");
+    if (!productDetails)
+      return res.status(404).send({ message: "Product not found" });
     // console.log(productDetails)
 
-    res.status(200).send({message : 'success', productDetails})
-
-  } 
-  catch (error) {
-    console.log(error)  
+    res.status(200).send({ message: "success", productDetails });
+  } catch (error) {
+    console.log(error);
   }
-}
+};
 
-const updateProduct = async(req,res)=>{
+const updateProduct = async (req, res) => {
   try {
-    const{title,description,category,price,discountPercentage,variants,tags}=req.body
-    const {slug} = req.params
-    const thumbnail = req.files?.thumbnail?.[0]
-    const images = req.files
+    const {
+      title,
+      description,
+      category,
+      price,
+      discountPercentage,
+      variants,
+      tags,
+    } = req.body;
+    const { slug } = req.params;
+    const thumbnail = req.files?.thumbnail?.[0];
+    const images = req.files;
 
-    const productData = await productSchema.findOne({slug})
+    const productData = await productSchema.findOne({ slug });
 
-    if(title) productData.title = title
-    if(description) productData.description = description
-    if(category) productData.category = category
-    if(price) productData.price = price
-    if(discountPercentage) productData.discountPercentage = discountPercentage
-    if(tags && tags.length > 0 && Array.isArray(tags)) productData.tags = tags
+    if (title) productData.title = title;
+    if (description) productData.description = description;
+    if (category) productData.category = category;
+    if (price) productData.price = price;
+    if (discountPercentage) productData.discountPercentage = discountPercentage;
+    if (tags && tags.length > 0 && Array.isArray(tags)) productData.tags = tags;
 
     // let variantData = [];
     // if (variants) {
     //     variantData = JSON.parse(variants);
     // }
-      
-    const variantData =variants && JSON.parse(variants);
+
+    const variantData = variants && JSON.parse(variants);
     // console.log(Array.isArray(variantData));
-    if (Array.isArray(variantData) && variantData.length > 0){
+    if (Array.isArray(variantData) && variantData.length > 0) {
       for (const variant of variantData) {
         console.log(variant);
         if (!variant.sku)
@@ -238,23 +276,31 @@ const updateProduct = async(req,res)=>{
       const skus = variantData.map((item) => item.sku);
       if (new Set(skus).size !== skus.length)
         return res.status(400).send({ message: "Sku must be unique" });
-  
+
       const existingProduct = await productSchema.findOne({
         "variants.sku": { $in: skus },
       });
     }
 
-     if(thumbnail){    
-      const imgRes = await uploadToCloudinary(thumbnail,'product')
-      deleteToCloudinary(productData?.thumbnail, "product")
-      productData.thumbnail = imgRes.secure_url
+    if (thumbnail) {
+      const imgRes = await uploadToCloudinary(thumbnail, "product");
+      deleteToCloudinary(productData?.thumbnail, "product");
+      productData.thumbnail = imgRes.secure_url;
     }
-    productData.save()
-    return responseHandler.success(res,'Uddate successfully done',productData)
-  } 
-  catch (error) {
-    return responseHandler.error(res,error.message)  
+    productData.save();
+    return responseHandler.success(
+      res,
+      "Uddate successfully done",
+      productData,
+    );
+  } catch (error) {
+    return responseHandler.error(res, error.message);
   }
-}
+};
 
-module.exports = { createProduct, getProductList ,getProductDetails ,updateProduct};
+module.exports = {
+  createProduct,
+  getProductList,
+  getProductDetails,
+  updateProduct,
+};
